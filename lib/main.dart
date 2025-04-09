@@ -4,25 +4,47 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool isDarkMode = false;
+
+  void toggleTheme() {
+    setState(() {
+      isDarkMode = !isDarkMode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Ejemplo Trabajo N°1',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: isDarkMode
+            ? const ColorScheme.dark()
+            : ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const CalculadoraPage(),
+      home: CalculadoraPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class CalculadoraPage extends StatefulWidget {
-  const CalculadoraPage({super.key});
+  final VoidCallback toggleTheme;
+  final bool isDarkMode;
+
+  const CalculadoraPage({
+    super.key,
+    required this.toggleTheme,
+    required this.isDarkMode,
+  });
 
   @override
   State<CalculadoraPage> createState() => _CalculadoraPageState();
@@ -43,13 +65,13 @@ class _CalculadoraPageState extends State<CalculadoraPage> {
       resultado = '';
       error = '';
 
+      final num1 = double.tryParse(texto1);
+      final num2 = double.tryParse(texto2);
+
       if (texto1.isEmpty || texto2.isEmpty) {
         error = 'Por favor, completa ambos campos.';
         return;
       }
-
-      final num1 = double.tryParse(texto1);
-      final num2 = double.tryParse(texto2);
 
       if (num1 == null || num2 == null) {
         error = 'Por favor, ingresa números válidos.';
@@ -58,16 +80,50 @@ class _CalculadoraPageState extends State<CalculadoraPage> {
 
       if (tipo == 'suma') {
         resultado = 'Resultado: ${num1 + num2}';
+      } else if (tipo == 'resta') {
+        resultado = 'Resultado: ${num1 - num2}';
       } else if (tipo == 'multiplicacion') {
         resultado = 'Resultado: ${num1 * num2}';
       }
     });
   }
 
+  void _validarInputs() {
+    final texto1 = numero1Controller.text.trim();
+    final texto2 = numero2Controller.text.trim();
+
+    setState(() {
+      error = '';
+      resultado = '';
+      if (texto1.isEmpty || texto2.isEmpty) {
+        error = 'Por favor, completa ambos campos.';
+      } else if (double.tryParse(texto1) == null ||
+          double.tryParse(texto2) == null) {
+        error = 'Por favor, ingresa números válidos.';
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    numero1Controller.addListener(_validarInputs);
+    numero2Controller.addListener(_validarInputs);
+  }
+
+  @override
+  void dispose() {
+    numero1Controller.dispose();
+    numero2Controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDarkMode;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? Colors.black : Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -75,7 +131,20 @@ class _CalculadoraPageState extends State<CalculadoraPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 30),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: widget.toggleTheme,
+                      icon: Icon(
+                        isDark ? Icons.dark_mode : Icons.light_mode,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 const Icon(Icons.cloud, size: 60, color: Colors.grey),
                 const SizedBox(height: 10),
                 const Text(
@@ -119,19 +188,24 @@ class _CalculadoraPageState extends State<CalculadoraPage> {
                   style: TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 10),
-                if (resultado.isNotEmpty)
-                  Text(
+                AnimatedOpacity(
+                  opacity: resultado.isNotEmpty ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 500),
+                  child: Text(
                     resultado,
                     style: const TextStyle(fontSize: 18),
                   ),
+                ),
+                const SizedBox(height: 10),
                 if (error.isNotEmpty)
                   Text(
                     error,
                     style: const TextStyle(color: Colors.red),
                   ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                Wrap(
+                  spacing: 10,
+                  alignment: WrapAlignment.center,
                   children: [
                     ElevatedButton(
                       onPressed: () => _calcular('suma'),
@@ -140,6 +214,14 @@ class _CalculadoraPageState extends State<CalculadoraPage> {
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('Sumar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _calcular('resta'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Restar'),
                     ),
                     ElevatedButton(
                       onPressed: () => _calcular('multiplicacion'),
